@@ -12,13 +12,18 @@ param(
     # SAVE
     [Parameter(Mandatory=$true, ParameterSetName="Save")]
     [Alias("s")]
-    [string]$save,
+    [switch]$save,
+
+    # OVERRIDE (force save even if name exists)
+    [Parameter(ParameterSetName="Save")]
+    [Alias("o")]
+    [switch]$override,
 
     # HIDE
     [Parameter(Mandatory=$true, ParameterSetName="Hide")]
     [string]$hide,
 
-    # UNHIDE
+    # UN-HIDE
     [Parameter(Mandatory=$true, ParameterSetName="Unhide")]
     [string]$unhide,
 
@@ -34,8 +39,15 @@ param(
     [Alias("d")]
     [switch]$delete,
 
+    # NAME (used by Save and Delete)
+    [Parameter(Mandatory=$true, ParameterSetName="Save", Position=0)]
     [Parameter(ParameterSetName="Delete", Position=0)]
     [string]$name,
+
+    # Storage Location
+    [Parameter(ParameterSetName="StorageLocation")]
+    [Alias("sl")]
+    [switch]$sloc,
 
     # HELP
     [Parameter(ParameterSetName="Help")]
@@ -56,7 +68,7 @@ function Get-SteamPath {
     } catch {}
 
     # Try running process
-    $process = Get-Process steam -ErrorAction SilentlyContinue
+    $process = Get-Process steam -HostAction SilentlyContinue
     if ($process) {
         return Split-Path $process.Path
     }
@@ -69,9 +81,7 @@ function Get-SteamPath {
     )
 
     foreach ($p in $commonPaths) {
-        if (Test-Path "$p\steam.exe") {
-            return $p
-        }
+        if (Test-Path "$p\steam.exe") { return $p }
     }
 
     return $null
@@ -108,10 +118,11 @@ if ($content -match '"(\d+)"\s*{[^}]*"MostRecent"\s*"1"') {
     Write-Host "AccountID: $accountId"
     Write-Host "PersonalName: $personaName"
 } else {
-    Write-Error "No active Steam user found."
+    Write-Host "No active Steam user found."
     exit 1
 }
 
+Write-Host ""
 
 # -----------------------------
 # PATH CONFIGURATION
@@ -135,19 +146,23 @@ New-Item -ItemType Directory -Force -Path $hiddenPath | Out-Null
 function Save-Grid($Name) {
 
     if (!(Test-Path $gridPath)) {
-        Write-Error "Grid folder not found."
+        Write-Host "Grid folder not found."
         exit 1
     }
 
     $dest = "$gridSCASPath\$Name"
 
     if (Test-Path $dest) {
-        Write-Error "Grid already exists."
-        exit 1
+        if (-not $override) {
+            Write-Host "Grid '$Name' already exists. Use -s -o to override." -ForegroundColor Red
+            exit 1
+        }
+
+        Remove-Item $dest -Recurse -Force
     }
 
     Copy-Item $gridPath $dest -Recurse
-    Write-Host "Grid '$Name' saved."
+    Write-Host "Grid '$Name' saved." -ForegroundColor Green
 }
 
 function List-Grids($IncludeHidden) {
@@ -170,12 +185,12 @@ function Hide-Grid($Name) {
     $dest = "$hiddenPath\$Name"
 
     if (!(Test-Path $src)) {
-        Write-Error "Grid not found."
+        Write-Host "Grid not found." -ForegroundColor Red
         exit 1
     }
 
     Move-Item $src $dest
-    Write-Host "Grid '$Name' hidden."
+    Write-Host "Grid '$Name' hidden." -ForegroundColor Yellow
 }
 
 function Unhide-Grid($Name) {
@@ -184,12 +199,12 @@ function Unhide-Grid($Name) {
     $dest = "$gridSCASPath\$Name"
 
     if (!(Test-Path $src)) {
-        Write-Error "Hidden profile not found."
+        Write-Host "Hidden grid not found." -ForegroundColor Red
         exit 1
     }
 
     Move-Item $src $dest
-    Write-Host "Profile '$Name' unhidden."
+    Write-Host "Grid '$Name' unhidden." -ForegroundColor Yellow
 }
 
 function Change-Grid($Name) {
@@ -200,10 +215,11 @@ function Change-Grid($Name) {
         $newGridPath = "$hiddenPath\$Name"
 
         if(!(Test-Path $newGridPath)) {
-            Write-Error "Grid not found."
+            Write-Host "Grid not found." -ForegroundColor Red
             exit 1
         }
     }
+
     # Stop Steam
     Get-Process steam -ErrorAction SilentlyContinue | Stop-Process -Force
     Start-Sleep 2
@@ -218,7 +234,7 @@ function Change-Grid($Name) {
     # Restart Steam
     Start-Process "$steamPath\steam.exe"
 
-    Write-Host "Switched to profile '$Name'."
+    Write-Host "Switched to grid '$Name'." -ForegroundColor Green
 }
 
 function Delete-Grid($Name) {
@@ -230,14 +246,14 @@ function Delete-Grid($Name) {
     if (-not $Name) {
 
         if (!(Test-Path $gridPath)) {
-            Write-Error "Grid folder not found."
+            Write-Host "Grid folder not found." -ForegroundColor Red
             exit 1
         }
 
         $backupName = "backup_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
         $backupPath = "$gridSCASPath\$backupName"
 
-        Write-Host "Creating backup: $backupName"
+        Write-Host "Creating backup: $backupName" -ForegroundColor Yellow
         Copy-Item $gridPath $backupPath -Recurse
 
         # Write-Host "Stopping Steam..."
@@ -249,30 +265,37 @@ function Delete-Grid($Name) {
 
         Start-Process "$steamPath\steam.exe"
 
-        Write-Host "Current grid deleted."
+        Write-Host "Current grid deleted." -ForegroundColor Green
         return
     }
 
     # -----------------------------
-    # CASE 2: ./SCAS.ps1 -delete profileName
+    # CASE 2: ./SCAS.ps1 -delete gridName
     # -----------------------------
     $gridStoragePath = "$gridSCASPath\$Name"
     $hiddenGridStoragePath = "$hiddenPath\$Name"
 
     if (Test-Path $gridStoragePath) {
         Remove-Item $gridStoragePath -Recurse -Force
-        Write-Host "Grid '$Name' deleted."
+        Write-Host "Grid '$Name' deleted." -ForegroundColor Green
         return
     }
 
     if (Test-Path $hiddenGridStoragePath) {
         Remove-Item $hiddenGridStoragePath -Recurse -Force
-        Write-Host "Hidden grid '$Name' deleted."
+        Write-Host "Hidden grid '$Name' deleted." -ForegroundColor Green
         return
     }
 
-    Write-Error "Grid '$Name' not found."
+    Write-Host "Grid '$Name' not found." -ForegroundColor Red
     exit 1
+}
+
+function Get-GridsSaveLocation {
+    $normalizedPath = $gridSCASPath -replace '\\','/'
+    $normalizedPath | Set-Clipboard
+    Write-Host "Grids location copied to clipboard:" -ForegroundColor Green
+    Write-Host "  $normalizedPath" -ForegroundColor Cyan
 }
 
 function Show-Help {
@@ -283,19 +306,23 @@ function Show-Help {
     Write-Host "  SCAS.ps1 [command] [options]"
     Write-Host ""
     Write-Host "COMMANDS:"
-    Write-Host "  -help,   -h                Show this help"
+    Write-Host "  -help,   -h                 Show this help"
     Write-Host ""
-    Write-Host "  -save,   -s  <name>        Save current grid as a profile"
-    Write-Host "  -list,   -l                List visible profiles"
-    Write-Host "           -a                Include hidden profiles (use with -list)"
+    Write-Host "  -save,   -s   <name>        Save current grid"
+    Write-Host "           -o                 Override if name exists (use with -save)"
     Write-Host ""
-    Write-Host "  -change, -c  <name>        Switch to a profile"
+    Write-Host "  -list,   -l                 List visible grids"
+    Write-Host "           -a                 Include hidden grids (use with -list)"
     Write-Host ""
-    Write-Host "  -delete, -d                Backup and delete current grid"
-    Write-Host "  -delete, -d  <name>        Delete a specific profile"
+    Write-Host "  -change, -c   <name>        Switch to a grid"
     Write-Host ""
-    Write-Host "  -hide        <name>        Hide a profile"
-    Write-Host "  -unhide      <name>        Unhide a profile"
+    Write-Host "  -delete, -d                 Backup and delete current grid"
+    Write-Host "  -delete, -d   <name>        Delete a specific grid"
+    Write-Host ""
+    Write-Host "  -hide         <name>        Hide a grid"
+    Write-Host "  -unhide       <name>        Unhide a grid"
+    Write-Host ""
+    Write-Host "  -sloc,   -sl                Show grids save location"
     Write-Host ""
     Write-Host "EXAMPLES:"
     Write-Host "  ./SCAS.ps1 -s clean_grid"
@@ -311,12 +338,13 @@ function Show-Help {
 # PARAMETER ROUTING
 # -----------------------------
 switch ($PSCmdlet.ParameterSetName) {
-    "List"   { List-Grids $all }
-    "Save"   { Save-Grid $save }
-    "Hide"   { Hide-Grid $hide }
-    "Unhide" { Unhide-Grid $unhide }
-    "Change" { Change-Grid $change }
-    "Delete" { Delete-Grid $name }
-    "Help"   { Show-Help }
-    default  { Show-Help }
+    "List"              { List-Grids $all }
+    "Save"              { Save-Grid $name }
+    "Hide"              { Hide-Grid $hide }
+    "Unhide"            { Unhide-Grid $unhide }
+    "Change"            { Change-Grid $change }
+    "Delete"            { Delete-Grid $name }
+    "StorageLocation"   { Get-GridsSaveLocation }
+    "Help"              { Show-Help }
+    default             { Show-Help }
 }
