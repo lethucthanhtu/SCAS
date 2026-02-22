@@ -1,7 +1,3 @@
-Here is a polished **GitHub-ready README.md** (clean formatting, badges-ready, structured for open source):
-
----
-
 # 🎮 Steam Custom Artwork Switcher (SCAS)
 
 > A lightweight PowerShell tool to manage and switch Steam custom artwork profiles instantly.
