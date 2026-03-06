@@ -62,16 +62,12 @@ function Get-SteamPath {
     # Try registry
     try {
         $path = (Get-ItemProperty "HKCU:\Software\Valve\Steam").SteamPath
-        if (Test-Path "$path\steam.exe") {
-            return $path
-        }
+        if (Test-Path "$path\steam.exe") { return $path }
     } catch {}
 
     # Try running process
     $process = Get-Process steam -HostAction SilentlyContinue
-    if ($process) {
-        return Split-Path $process.Path
-    }
+    if ($process) { return Split-Path $process.Path }
 
     # Check common paths
     $commonPaths = @(
@@ -146,23 +142,37 @@ New-Item -ItemType Directory -Force -Path $hiddenPath | Out-Null
 function Save-Grid($Name) {
 
     if (!(Test-Path $gridPath)) {
-        Write-Host "Grid folder not found."
+        Write-Host "Grid folder not found." -ForegroundColor Red
         exit 1
     }
 
-    $dest = "$gridSCASPath\$Name"
+    $visibleDest = Join-Path $gridSCASPath $Name
+    $hiddenDest  = Join-Path $hiddenPath $Name
 
-    if (Test-Path $dest) {
+    $existingPath = $null
+
+    if (Test-Path $visibleDest) { $existingPath = $visibleDest }
+    elseif (Test-Path $hiddenDest) { $existingPath = $hiddenDest }
+
+    # Handle existing grid
+    if ($existingPath) {
+
         if (-not $override) {
-            Write-Host "Grid '$Name' already exists. Use -s -o to override." -ForegroundColor Red
+            Write-Host "Grid '$Name' already exists. Use -o to override." -ForegroundColor Red
             exit 1
         }
 
-        Remove-Item $dest -Recurse -Force
+        Write-Host "Overriding existing grid '$Name'..." -ForegroundColor Yellow
+        Remove-Item $existingPath -Recurse -Force
+        $dest = $existingPath
+    }
+    else {
+        $dest = $visibleDest
     }
 
-    Copy-Item $gridPath $dest -Recurse
-    Write-Host "Grid '$Name' saved." -ForegroundColor Green
+    Copy-Item $gridPath $dest -Recurse -ErrorAction Stop
+
+    Write-Host "Grid '$Name' saved successfully." -ForegroundColor Green
 }
 
 function List-Grids($IncludeHidden) {
@@ -338,13 +348,13 @@ function Show-Help {
 # PARAMETER ROUTING
 # -----------------------------
 switch ($PSCmdlet.ParameterSetName) {
-    "List"              { List-Grids $all }
-    "Save"              { Save-Grid $name }
-    "Hide"              { Hide-Grid $hide }
-    "Unhide"            { Unhide-Grid $unhide }
-    "Change"            { Change-Grid $change }
-    "Delete"            { Delete-Grid $name }
-    "StorageLocation"   { Get-GridsSaveLocation }
-    "Help"              { Show-Help }
-    default             { Show-Help }
+    "List"            { List-Grids $all }
+    "Save"            { Save-Grid $name }
+    "Hide"            { Hide-Grid $hide }
+    "Unhide"          { Unhide-Grid $unhide }
+    "Change"          { Change-Grid $change }
+    "Delete"          { Delete-Grid $name }
+    "StorageLocation" { Get-GridsSaveLocation }
+    "Help"            { Show-Help }
+    default           { Show-Help }
 }
