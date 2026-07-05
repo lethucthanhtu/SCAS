@@ -100,7 +100,7 @@ $loginFile = "$steamPath\config\loginusers.vdf"
 $content = Get-Content $loginFile -Raw
 
 # Find current active user
-if ($content -match '"(\d+)"\s*{[^}]*"MostRecent"\s*"1"') {
+if ($content -match '"(\d+)"\s*{[^}]*"AutoLogin"\s*"1"') {
     $userBlock = $matches[0]
     $steamId64 = [int64]$matches[1]
     $accountId = $steamId64 - 76561197960265728
