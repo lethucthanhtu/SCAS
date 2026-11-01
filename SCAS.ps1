@@ -66,7 +66,7 @@ function Get-SteamPath {
     } catch {}
 
     # Try running process
-    $process = Get-Process steam -HostAction SilentlyContinue
+    $process = Get-Process steam -ErrorAction SilentlyContinue
     if ($process) { return Split-Path $process.Path }
 
     # Check common paths
