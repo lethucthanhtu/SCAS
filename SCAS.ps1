@@ -280,7 +280,7 @@ function Delete-Grid($Name) {
         Get-Process steam -ErrorAction SilentlyContinue | Stop-Process -Force
         Start-Sleep 2
 
-        # Remove-Item $gridPath -Recurse -Force
+        Remove-Item $gridPath -Recurse -Force
         Remove-Item "$steamPath\appcache\librarycache" -Recurse -Force -ErrorAction SilentlyContinue
 
         Start-Process "$steamPath\steam.exe"
