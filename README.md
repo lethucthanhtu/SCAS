@@ -115,6 +115,7 @@ Example:
 ./SCAS.ps1 -c clean_layout
 ```
 
+The current grid is first saved as `backup_YYYYMMDD_HHMMSS`, so unsaved artwork is never lost.
 Steam will automatically restart.
 
 ---
@@ -209,6 +210,16 @@ Steam
 * Library cache is cleared to force artwork refresh.
 * Avoid running during downloads or updates.
 * Profiles are stored inside your Steam directory.
+* Profile names must be a plain folder name: `.`, `..`, `.hidden` and `\ / : * ? " < > |` are rejected.
+* Old `backup_*` profiles are kept until you delete them with `./SCAS.ps1 -d <name>`.
+
+---
+
+## ♻️ Restore / Uninstall
+
+* To get artwork back, switch to one of the profiles or backups: `./SCAS.ps1 -l -a`, then `./SCAS.ps1 -c <name>`.
+* To uninstall, delete `SCAS.ps1` and, once you no longer need the saved profiles and backups,
+  the `Steam\userdata\SCAS_grid` folder (`./SCAS.ps1 -sl` copies its path).
 
 ---
 
