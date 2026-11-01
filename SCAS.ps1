@@ -21,15 +21,19 @@ param(
 
     # HIDE
     [Parameter(Mandatory=$true, ParameterSetName="Hide")]
+    # Names are folder names under SCAS_grid; block paths like '..' that would delete outside it
+    [ValidatePattern('^(?!\.{1,2}$|\.hidden$)[^\\/:*?"<>|]+$')]
     [string]$hide,
 
     # UN-HIDE
     [Parameter(Mandatory=$true, ParameterSetName="Unhide")]
+    [ValidatePattern('^(?!\.{1,2}$|\.hidden$)[^\\/:*?"<>|]+$')]
     [string]$unhide,
 
     # CHANGE
     [Parameter(Mandatory=$true, ParameterSetName="Change")]
     [Alias("c")]
+    [ValidatePattern('^(?!\.{1,2}$|\.hidden$)[^\\/:*?"<>|]+$')]
     [string]$change,
 
     # DELETE
@@ -42,6 +46,7 @@ param(
     # NAME (used by Save and Delete)
     [Parameter(Mandatory=$true, ParameterSetName="Save", Position=0)]
     [Parameter(ParameterSetName="Delete", Position=0)]
+    [ValidatePattern('^(?!\.{1,2}$|\.hidden$)[^\\/:*?"<>|]+$')]
     [string]$name,
 
     # Storage Location
