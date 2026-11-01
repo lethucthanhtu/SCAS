@@ -222,6 +222,12 @@ function Unhide-Grid($Name) {
     Write-Host "Grid '$Name' unhidden." -ForegroundColor Yellow
 }
 
+function Backup-CurrentGrid {
+    $backupName = "backup_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
+    Write-Host "Creating backup: $backupName" -ForegroundColor Yellow
+    Copy-Item $gridPath "$gridSCASPath\$backupName" -Recurse -ErrorAction Stop
+}
+
 function Change-Grid($Name) {
 
     $newGridPath = "$gridSCASPath\$Name"
@@ -235,13 +241,16 @@ function Change-Grid($Name) {
         }
     }
 
+    # Keep the current artwork in case it was never saved
+    if (Test-Path $gridPath) { Backup-CurrentGrid }
+
     # Stop Steam
     Get-Process steam -ErrorAction SilentlyContinue | Stop-Process -Force
     Start-Sleep 2
 
     # Replace grid
     Remove-Item $gridPath -Recurse -Force -ErrorAction SilentlyContinue
-    Copy-Item $newGridPath $gridPath -Recurse
+    Copy-Item $newGridPath $gridPath -Recurse -ErrorAction Stop
 
     # Clear cache
     Remove-Item "$steamPath\appcache\librarycache" -Recurse -Force -ErrorAction SilentlyContinue
@@ -265,11 +274,7 @@ function Delete-Grid($Name) {
             exit 1
         }
 
-        $backupName = "backup_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
-        $backupPath = "$gridSCASPath\$backupName"
-
-        Write-Host "Creating backup: $backupName" -ForegroundColor Yellow
-        Copy-Item $gridPath $backupPath -Recurse
+        Backup-CurrentGrid
 
         # Write-Host "Stopping Steam..."
         Get-Process steam -ErrorAction SilentlyContinue | Stop-Process -Force
